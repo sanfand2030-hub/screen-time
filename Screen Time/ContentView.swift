@@ -32,15 +32,18 @@ struct ContentView: View {
                     .bold()
                 Text("Stop your procrastination now. Begin your productive day.")
 
-                Text("Set your timer:")
-                    .bold()
-                Spacer()
+                HStack {
+                    Text("Set your timer:")
+                        .bold()
+                    Text("[input]")
+                        .italic()
+                    Spacer()
+                }
             }
             .padding()
         }
     }
 }
-#Preview("(Totally not) Screen Time") {
+#Preview {
     ContentView()
-        .preferredColorScheme(.dark)
 }
