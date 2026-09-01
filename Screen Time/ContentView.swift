@@ -21,7 +21,6 @@ extension Color {
     }
 }
 
-// Model to hold Application data and native icon
 struct AppItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
@@ -30,11 +29,19 @@ struct AppItem: Identifiable, Hashable {
 }
 
 struct ContentView: View {
-    @State private var selectedMinutes: Int = 25
+    @State private var selectedSeconds: Int = 25
     @State private var searchAppName: String = ""
     @State private var allowedApps: [AppItem] = []
     
-    let timerOptions = [15, 25, 45, 60, 90]
+    @State private var hours: String = ""
+    @State private var minutes: String = ""
+    @State private var seconds: String = ""
+    
+    @FocusState private var focusedField: TimeField?
+    
+    enum TimeField {
+        case hours, minutes, seconds
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -47,20 +54,59 @@ struct ContentView: View {
                     .bold()
                 
                 Text("Stop your procrastination now. Begin your productive day.")
-                    .font(.subheadline)
+                    .font(.headline)
+                    .fontWeight(.regular)
                 
                 // Timer Selection Row
-                HStack {
+                HStack(spacing: 12) {
                     Text("Set your timer:")
                         .bold()
                     
-                    Picker("Duration", selection: $selectedMinutes) {
-                        ForEach(timerOptions, id: \.self) { minutes in
-                            Text("\(minutes) minutes").tag(minutes)
-                        }
+                    HStack(spacing: 4) {
+                        TextField("__", text: limitInput($hours, maxDigits: 2, maxValue: 23))
+                            .focused($focusedField, equals: .hours)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 45)
+                            .textFieldStyle(.plain)
+                            .onChange(of: hours) { _, newValue in
+                                if newValue.count == 2 {
+                                    focusedField = .minutes
+                                }
+                            }
+                        
+                        Text(":")
+                        
+                        TextField("__", text: limitInput($minutes, maxDigits: 2, maxValue: 59))
+                            .focused($focusedField, equals: .minutes)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 45)
+                            .textFieldStyle(.plain)
+                            .onChange(of: minutes) { oldValue, newValue in
+                                if newValue.count == 2 {
+                                    focusedField = .seconds
+                                } else if newValue.isEmpty && oldValue.isEmpty {
+                                    focusedField = .hours
+                                }
+                            }
+                        
+                        Text(":")
+                        
+                        TextField("__", text: limitInput($seconds, maxDigits: 2, maxValue: 59))
+                            .focused($focusedField, equals: .seconds)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 45)
+                            .textFieldStyle(.plain)
+                            .onChange(of: seconds) { oldValue, newValue in
+                                if newValue.isEmpty && oldValue.isEmpty {
+                                    focusedField = .minutes
+                                }
+                            }
                     }
-                    .labelsHidden()
-                    .frame(width: 140)
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.15))
+                    .cornerRadius(8)
                     
                     Spacer()
                 }
@@ -72,7 +118,6 @@ struct ContentView: View {
                     Text("List of allowed applications:")
                         .bold()
                     
-                    // Input bar to search system or browse disk
                     HStack {
                         TextField("Enter app name (e.g. Calculator)...", text: $searchAppName)
                             .textFieldStyle(.roundedBorder)
@@ -87,7 +132,6 @@ struct ContentView: View {
                         }
                     }
                     
-                    // List displaying actual app icons
                     List {
                         ForEach(allowedApps) { app in
                             HStack(spacing: 10) {
@@ -114,7 +158,6 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // Action Button
                 Button(action: startSession) {
                     Text("Start Focus Session")
                         .font(.headline)
@@ -128,35 +171,49 @@ struct ContentView: View {
         }
         .frame(minWidth: 480, minHeight: 480)
         .onAppear {
-            // Seed defaults with real macOS icons on load
             addAppByName("Xcode")
             addAppByName("Calculator")
         }
     }
     
+    // Pure sanitizer binding - zero side-effects
+    // Sanitizer binding - enforces both max digits and max numeric value
+    private func limitInput(_ binding: Binding<String>, maxDigits: Int, maxValue: Int? = nil) -> Binding<String> {
+        Binding(
+            get: { binding.wrappedValue },
+            set: { newValue in
+                // Filter non-numeric characters and constrain string length
+                let filtered = String(newValue.filter { $0.isNumber }.prefix(maxDigits))
+                
+                // Check max numerical value constraints
+                if let max = maxValue, let numericValue = Int(filtered), numericValue > max {
+                    // If input exceeds max allowed, cap it to maxValue string
+                    binding.wrappedValue = String(max)
+                } else {
+                    binding.wrappedValue = filtered
+                }
+            }
+        )
+    }
+    
     // MARK: - App Fetching Logic
     
-    /// Finds application by name on macOS and fetches its official NSImage icon
-    /// Finds application by name on macOS using modern non-deprecated NSWorkspace APIs
     private func addAppByName(_ name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         
         var foundURL: URL?
         
-        // 1. Try resolving using system application lookup URL
         let tempURL = URL(fileURLWithPath: "/Applications/\(trimmed).app")
         if FileManager.default.fileExists(atPath: tempURL.path) {
             foundURL = tempURL
         } else {
-            // Fallback search in /System/Applications/
             let systemURL = URL(fileURLWithPath: "/System/Applications/\(trimmed).app")
             if FileManager.default.fileExists(atPath: systemURL.path) {
                 foundURL = systemURL
             }
         }
         
-        // 2. Extract icon and path if URL was located
         if let appURL = foundURL {
             let appIcon = NSWorkspace.shared.icon(forFile: appURL.path)
             let appName = appURL.deletingPathExtension().lastPathComponent
@@ -171,7 +228,6 @@ struct ContentView: View {
         }
     }
     
-    /// Presents NSOpenPanel for selecting .app files directly from disk
     private func openAppFileImporter() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.application]
@@ -196,10 +252,6 @@ struct ContentView: View {
     }
     
     private func startSession() {
-        print("Starting \(selectedMinutes) minute session with allowed paths: \(allowedApps.map { $0.bundlePath })")
+        print("Starting \(Int(hours) ?? 0) hours, \(Int(minutes) ?? 0) minutes, and \(Int(seconds) ?? 0) seconds session with allowed paths: \(allowedApps.map { $0.bundlePath })")
     }
-}
-
-#Preview {
-    ContentView()
 }
