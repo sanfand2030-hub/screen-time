@@ -26,12 +26,14 @@ struct ContentView: View {
             Color.dynamicBackground
                 .ignoresSafeArea()
             
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Screen Time")
                     .font(.title)
                     .bold()
-                    .padding(.bottom, 12)
                 Text("Stop your procrastination now. Begin your productive day.")
+
+                Text("Set your timer:")
+                    .bold()
                 Spacer()
             }
             .padding()
