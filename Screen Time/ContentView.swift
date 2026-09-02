@@ -39,6 +39,8 @@ struct ContentView: View {
     
     @FocusState private var focusedField: TimeField?
     
+    @StateObject private var manager = SessionManager()
+    
     enum TimeField {
         case hours, minutes, seconds
     }
@@ -158,13 +160,22 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                Button(action: startSession) {
-                    Text("Start Focus Session")
+                // TODO: this is debug code. in release, remove ability to stop focus session until timer runs out
+                Button(action: {
+                    if manager.isSessionActive {
+                        manager.stopSession()
+                    } else {
+                        startSession()
+                    }
+                }) {
+                    Text(manager.isSessionActive ? "Stop Focus Session (\(manager.timeRemaining)s)" :
+                            "Start Focus Session")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(manager.isSessionActive ? .red : .accentColor)
                 .controlSize(.large)
             }
             .padding()
@@ -252,6 +263,6 @@ struct ContentView: View {
     }
     
     private func startSession() {
-        print("Starting \(Int(hours) ?? 0) hours, \(Int(minutes) ?? 0) minutes, and \(Int(seconds) ?? 0) seconds session with allowed paths: \(allowedApps.map { $0.bundlePath })")
+        manager.startSession(hoursStr: hours, minutesStr: minutes, secondsStr: seconds, allowedApps: allowedApps)
     }
 }

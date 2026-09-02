@@ -14,9 +14,17 @@ void start_blocking_session(int duration_seconds, const char **allowed_paths, in
     for (int i = 0; i < count; i++) {
         printf("[C Engine] Allowed app path: %s\n", allowed_paths[i]);
     }
+    puts("(not implemented yet)");
     // TODO: implement low level stuff (find sys libraries later)
 }
 
 void stop_blocking_session(void) {
     printf("[C Engine] Session stopped.\n");
+}
+
+void check_and_enforce_rules(const char **allowed_paths, int32_t ct)
+{
+    // TODO: implement
+    puts("(placeholder)");
+    printf("Allowed count: %d\n", ct);
 }
