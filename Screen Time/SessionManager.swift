@@ -25,6 +25,13 @@ class SessionManager: ObservableObject {
         
         let pathStrings = allowedApps.map { $0.bundlePath }
         
+        monitoringQueue.async { [weak self] in
+            guard let self = self else {return}
+            self.withCArrayOfStrings(pathStrings) { cPathsArray in
+                start_blocking_session(Int32(totalSeconds), cPathsArray, Int32(pathStrings.count))
+            }
+        }
+        
         // 1. Start C Monitoring Loop on Background Queue
         startBackgroundMonitoring(paths: pathStrings)
         
@@ -48,13 +55,19 @@ class SessionManager: ObservableObject {
         monitoringTimer?.cancel()
         monitoringTimer = nil
         
+        monitoringQueue.async {
+            stop_blocking_session()
+        }
+        
         isSessionActive = false
     }
 
     // MARK: - Idiomatic C Polling Bridge
     private func startBackgroundMonitoring(paths: [String]) {
         let timer = DispatchSource.makeTimerSource(queue: monitoringQueue)
+        
         // Poll every 1.0 second (adjust frequency as needed)
+        // TODO: somehow call start_blocking_session
         timer.schedule(deadline: .now(), repeating: 1.0)
         
         timer.setEventHandler { [weak self] in
