@@ -29,11 +29,59 @@ static bool is_allowed_path(const char *executable_path)
 
 static bool is_user_app(const char *path)
 {
-    if (strstr(path, "Applications/") || strstr(path, "/Users/")) {
-        if (strstr(path, ".app/Contents/MacOS/"))
-            return true;
+    // 1. Core target path validation
+    if (!strstr(path, "Applications/") && !strstr(path, "/Users/")) {
+        return false;
     }
-    return false;
+    
+    // Ensure it's inside an app bundle
+    const char *app_extension = strstr(path, ".app/Contents/MacOS/");
+    if (!app_extension) {
+        return false;
+    }
+
+    // 2. Extract the path to the root .app directory
+    size_t bundle_path_len = (size_t)(app_extension - path + 4); // Include ".app"
+    char bundle_path[PROC_PIDPATHINFO_MAXSIZE];
+    
+    if (bundle_path_len >= sizeof(bundle_path)) return false;
+    
+    strncpy(bundle_path, path, bundle_path_len);
+    bundle_path[bundle_path_len] = '\0';
+
+    // 3. Inspect the App Bundle via CoreFoundation to check for LSUIElement / LSBackgroundOnly
+    bool is_gui_app = true;
+
+    CFStringRef cf_path = CFStringCreateWithFileSystemRepresentation(kCFAllocatorDefault, bundle_path);
+    if (cf_path) {
+        CFURLRef bundle_url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, cf_path, kCFURLPOSIXPathStyle, true);
+        if (bundle_url) {
+            CFBundleRef bundle = CFBundleCreate(kCFAllocatorDefault, bundle_url);
+            if (bundle) {
+                // Check if LSUIElement (Agent / No Dock icon) is set to true
+                CFTypeRef ui_element = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("LSUIElement"));
+                if (ui_element && CFGetTypeID(ui_element) == CFBooleanGetTypeID()) {
+                    if (CFBooleanGetValue((CFBooleanRef)ui_element)) {
+                        is_gui_app = false; // GUI-less agent
+                    }
+                }
+
+                // Check if LSBackgroundOnly is set to true
+                CFTypeRef bg_only = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("LSBackgroundOnly"));
+                if (bg_only && CFGetTypeID(bg_only) == CFBooleanGetTypeID()) {
+                    if (CFBooleanGetValue((CFBooleanRef)bg_only)) {
+                        is_gui_app = false; // Background-only process
+                    }
+                }
+
+                CFRelease(bundle);
+            }
+            CFRelease(bundle_url);
+        }
+        CFRelease(cf_path);
+    }
+
+    return is_gui_app;
 }
 
 // TODO: fix

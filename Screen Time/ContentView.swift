@@ -21,6 +21,26 @@ extension Color {
     }
 }
 
+extension URL {
+    /// Returns the exact, case-correct path on disk, resolving case mismatches.
+    var realPathURL: URL {
+        // Fetch the canonical path key directly from the file system
+        if let resourceValues = try? self.resourceValues(forKeys: [.canonicalPathKey]),
+           let canonicalPath = resourceValues.canonicalPath {
+            return URL(fileURLWithPath: canonicalPath)
+        }
+        
+        // Fallback: Resolving symlinks also normalizes path components
+        return self.resolvingSymlinksInPath()
+    }
+    
+    /// Returns the exact case-correct display name on disk (without extension)
+    var realAppName: String {
+        let exactURL = self.realPathURL
+        return exactURL.deletingPathExtension().lastPathComponent
+    }
+}
+
 struct AppItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
@@ -123,6 +143,9 @@ struct ContentView: View {
                     HStack {
                         TextField("Enter app name (e.g. Calculator)...", text: $searchAppName)
                             .textFieldStyle(.roundedBorder)
+                            .onSubmit {
+                                addAppByName(searchAppName)
+                            }
                         
                         Button("Add") {
                             addAppByName(searchAppName)
@@ -208,26 +231,58 @@ struct ContentView: View {
     }
     
     // MARK: - App Fetching Logic
-    
+    private func findAppURL(named appName: String) -> URL? {
+        // 1. Try finding by Bundle Identifier if `appName` is a bundle ID
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appName) {
+            return url
+        }
+
+        // 2. Search standard directories directly (no recursive traversal)
+        let appFilename = appName.hasSuffix(".app") ? appName : "\(appName).app"
+        
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let searchPaths: [URL] = [
+            // Standard system & user application folders
+            FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask).first,
+            FileManager.default.urls(for: .applicationDirectory, in: .systemDomainMask).first,
+            FileManager.default.urls(for: .applicationDirectory, in: .userDomainMask).first,
+            
+            // Utilities
+            URL(fileURLWithPath: "/System/Applications/Utilities"),
+            URL(fileURLWithPath: "/Applications/Utilities"),
+            
+            // Chrome PWAs and Web Applications
+            home.appendingPathComponent("Applications/Chrome Apps.localized"),
+            home.appendingPathComponent("Applications/Chrome Apps"),
+            home.appendingPathComponent("Applications")
+        ].compactMap { $0 }
+
+        for baseURL in searchPaths {
+            let candidateURL = baseURL.appendingPathComponent(appFilename)
+            if FileManager.default.fileExists(atPath: candidateURL.path) {
+                return candidateURL
+            }
+        }
+
+        return nil
+    }
     private func addAppByName(_ name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        
-        var foundURL: URL?
-        
-        let tempURL = URL(fileURLWithPath: "/Applications/\(trimmed).app")
-        if FileManager.default.fileExists(atPath: tempURL.path) {
-            foundURL = tempURL
-        } else {
-            let systemURL = URL(fileURLWithPath: "/System/Applications/\(trimmed).app")
-            if FileManager.default.fileExists(atPath: systemURL.path) {
-                foundURL = systemURL
-            }
-        }
-        
-        if let appURL = foundURL {
+
+        let appFilename = trimmed.hasSuffix(".app") ? trimmed : "\(trimmed).app"
+
+        let foundURL = findAppURL(named: appFilename)
+
+        if let rawAppURL = foundURL {
+            // Resolve the exact case-correct URL from disk
+            let appURL = rawAppURL.realPathURL
+            
             let appIcon = NSWorkspace.shared.icon(forFile: appURL.path)
+            
+            // appURL.deletingPathExtension().lastPathComponent now holds the correct casing
             let appName = appURL.deletingPathExtension().lastPathComponent
+            
             let newApp = AppItem(name: appName, icon: appIcon, bundlePath: appURL.path)
             
             if !allowedApps.contains(where: { $0.bundlePath == appURL.path }) {
@@ -235,7 +290,7 @@ struct ContentView: View {
             }
             searchAppName = ""
         } else {
-            print("Could not locate app path for: \(trimmed)")
+            print("Could not finde app: \(appFilename)")
         }
     }
     
