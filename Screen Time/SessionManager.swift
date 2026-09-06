@@ -67,7 +67,6 @@ class SessionManager: ObservableObject {
         let timer = DispatchSource.makeTimerSource(queue: monitoringQueue)
         
         // Poll every 1.0 second (adjust frequency as needed)
-        // TODO: somehow call start_blocking_session
         timer.schedule(deadline: .now(), repeating: 1.0)
         
         timer.setEventHandler { [weak self] in

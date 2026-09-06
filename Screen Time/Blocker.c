@@ -9,6 +9,10 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <assert.h>
 
+#ifdef NDEBUG
+#define printf(...) ((void)0)
+#endif
+
 static bool is_blocking_active = false;
 static char **allowed_paths = NULL;
 static size_t allowed_paths_ct = 0;
@@ -84,7 +88,6 @@ static bool is_user_app(const char *path)
     return is_gui_app;
 }
 
-// TODO: fix
 void check_running_processes(void)
 {
     if (!is_blocking_active || allowed_paths == NULL || allowed_paths_ct == 0) {
