@@ -8,3 +8,10 @@ App designed for macOS. Compiling it differently might work on Linux distributio
 The user sets a timer and a list of allowed applications. Then, they start the focus session, and the application (using low level direct control through C) prevents the user from being on disallowed applications.
 
 The app then enforces those rules by killing user app processes that are not allowed.
+
+## Installation
+To install, simply download the `Screen Time.zip` file, extract it, and move the resulting app into the Applications folder in Finder. Running it for the first time may result in the application being blocked; to solve this, do the following:
+1. Open the System Settings app
+2. Navigate to Privacy & Security
+3. Scroll down to the Security section
+4. Find the message stating that the application was blocked, and click "Open Anyway"
