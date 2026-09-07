@@ -15,3 +15,8 @@ To install, simply download the `Screen Time.zip` file, extract it, and move the
 2. Navigate to Privacy & Security
 3. Scroll down to the Security section
 4. Find the message stating that the application was blocked, and click "Open Anyway"
+
+## Limitations
+The application does not remember the previous settings when the window is closed. Thus, the details need to be re-entered each time the app is opened. However, this can be an upside if the allowed apps for each session are different.
+
+Additionally, this application cannot manage browser tabs or web domains, as that requires their respective APIs which are not implemented.
