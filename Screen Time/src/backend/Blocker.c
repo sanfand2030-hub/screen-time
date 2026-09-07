@@ -19,7 +19,6 @@ static size_t allowed_paths_ct = 0;
 
 static bool is_allowed_path(const char *executable_path)
 {
-    // Guard against NULL state safely
     if (allowed_paths == NULL || allowed_paths_ct == 0) return false;
     
     for (size_t i = 0; i < allowed_paths_ct; i++) {
@@ -33,18 +32,18 @@ static bool is_allowed_path(const char *executable_path)
 
 static bool is_user_app(const char *path)
 {
-    // 1. Core target path validation
+    // Core target path validation
     if (!strstr(path, "Applications/") && !strstr(path, "/Users/")) {
         return false;
     }
     
-    // Ensure it's inside an app bundle
+    // Ensure it's inside app bundle
     const char *app_extension = strstr(path, ".app/Contents/MacOS/");
     if (!app_extension) {
         return false;
     }
 
-    // 2. Extract the path to the root .app directory
+    // Extract path to root .app directory
     size_t bundle_path_len = (size_t)(app_extension - path + 4); // Include ".app"
     char bundle_path[PROC_PIDPATHINFO_MAXSIZE];
     
@@ -53,7 +52,8 @@ static bool is_user_app(const char *path)
     strncpy(bundle_path, path, bundle_path_len);
     bundle_path[bundle_path_len] = '\0';
 
-    // 3. Inspect the App Bundle via CoreFoundation to check for LSUIElement / LSBackgroundOnly
+    // Inspect the App Bundle to check for LSUIElement / LSBackgroundOnly
+    // This is to prevent background apps (like Google Drive) from being killed
     bool is_gui_app = true;
 
     CFStringRef cf_path = CFStringCreateWithFileSystemRepresentation(kCFAllocatorDefault, bundle_path);
@@ -90,10 +90,9 @@ static bool is_user_app(const char *path)
 
 void check_running_processes(void)
 {
-    if (!is_blocking_active || allowed_paths == NULL || allowed_paths_ct == 0) {
-        printf("debug: blocking is not active or allowed_paths is empty.\n");
-        assert(0);
-    }
+    assert(is_blocking_active);
+    assert(allowed_paths);
+    assert(allowed_paths_ct);
 
     // 1. Query necessary byte buffer size for ALL processes
     int bytes_needed = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
@@ -146,8 +145,11 @@ void check_running_processes(void)
     free(pids);
 }
 
-void start_blocking_session(int duration_seconds, const char **allowed, int count) {
-    if (count <= 0 || allowed == NULL) return;
+int start_blocking_session(int duration_seconds, const char **allowed, int count) {
+    if (count <= 0 || allowed == NULL) {
+        return 1;
+    }
+    printf("debug: count = %d\n", count);
 
     // Clean up existing paths if starting a new session
     if (allowed_paths != NULL) {
@@ -172,6 +174,8 @@ void start_blocking_session(int duration_seconds, const char **allowed, int coun
 
     allowed_paths_ct = (size_t)count;
     is_blocking_active = true;
+    
+    return 0;
 }
 
 void stop_blocking_session(void) {

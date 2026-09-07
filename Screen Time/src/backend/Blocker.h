@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 // Starts blocking non-allowed apps for the specified duration (in seconds)
-void start_blocking_session(int duration_seconds, const char **allowed_paths, int count);
+int start_blocking_session(int duration_seconds, const char **allowed_paths, int count);
 
 // Stops active monitoring loop
 void stop_blocking_session(void);

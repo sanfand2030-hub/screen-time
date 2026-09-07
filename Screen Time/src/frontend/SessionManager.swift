@@ -5,6 +5,9 @@ class SessionManager: ObservableObject {
     @Published var isSessionActive: Bool = false
     @Published var timeRemaining: Int = 0
     
+    @Published var isShowingAlert: Bool = false
+    @Published var alertMessage: String = ""
+    
     // Timer for UI updates (Main Queue)
     private var uiTimer: Timer?
     
@@ -12,7 +15,9 @@ class SessionManager: ObservableObject {
     private var monitoringTimer: DispatchSourceTimer?
     private let monitoringQueue = DispatchQueue(label: "com.screentime.monitoring", qos: .userInitiated)
 
-    func startSession(hoursStr: String, minutesStr: String, secondsStr: String, allowedApps: [AppItem]) {
+    func startSession(hoursStr: String, minutesStr: String, secondsStr: String, allowedApps: [AppItem],
+                      onError: @escaping (_ title: String, _ message: String) -> Void)
+    {
         let h = Int(hoursStr) ?? 0
         let m = Int(minutesStr) ?? 0
         let s = Int(secondsStr) ?? 0
@@ -20,28 +25,35 @@ class SessionManager: ObservableObject {
         
         guard totalSeconds > 0 else { return }
         
-        self.timeRemaining = totalSeconds
-        self.isSessionActive = true
-        
         let pathStrings = allowedApps.map { $0.bundlePath }
         
         monitoringQueue.async { [weak self] in
             guard let self = self else {return}
-            self.withCArrayOfStrings(pathStrings) { cPathsArray in
+            let ret = self.withCArrayOfStrings(pathStrings) { cPathsArray in
                 start_blocking_session(Int32(totalSeconds), cPathsArray, Int32(pathStrings.count))
             }
-        }
-        
-        // 1. Start C Monitoring Loop on Background Queue
-        startBackgroundMonitoring(paths: pathStrings)
-        
-        // 2. Start Countdown Timer for UI
-        uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            if self.timeRemaining > 0 {
-                self.timeRemaining -= 1
-            } else {
-                self.stopSession()
+            
+            if ret != 0 {
+                print("test2")
+                DispatchQueue.main.async {
+                    onError("Session Error", "List of allowed apps is empty")
+                }
+                return
+            }
+            
+            
+            self.timeRemaining = totalSeconds
+            self.isSessionActive = true
+            
+            startBackgroundMonitoring(paths: pathStrings)
+            
+            uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                if self.timeRemaining > 0 {
+                    self.timeRemaining -= 1
+                } else {
+                    self.stopSession()
+                }
             }
         }
     }

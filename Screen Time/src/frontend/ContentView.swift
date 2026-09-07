@@ -61,6 +61,10 @@ struct ContentView: View {
     
     @StateObject private var manager = SessionManager()
     
+    @State private var isShowingAlert: Bool = false
+    @State private var alertMessage: String = ""
+    @State private var alertTitle: String = ""
+    
     enum TimeField {
         case hours, minutes, seconds
     }
@@ -186,7 +190,9 @@ struct ContentView: View {
                 // TODO: this is debug code. in release, remove ability to stop focus session until timer runs out
                 Button(action: {
                     if manager.isSessionActive {
+                        #if DEBUG
                         manager.stopSession()
+                        #endif
                     } else {
                         startSession()
                     }
@@ -204,6 +210,11 @@ struct ContentView: View {
             .padding()
         }
         .frame(minWidth: 480, minHeight: 480)
+        .alert(alertTitle, isPresented: $isShowingAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertMessage)
+        }
         .onAppear {
             addAppByName("Xcode")
             addAppByName("Calculator")
@@ -232,12 +243,6 @@ struct ContentView: View {
     
     // MARK: - App Fetching Logic
     private func findAppURL(named appName: String) -> URL? {
-        // 1. Try finding by Bundle Identifier if `appName` is a bundle ID
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appName) {
-            return url
-        }
-
-        // 2. Search standard directories directly (no recursive traversal)
         let appFilename = appName.hasSuffix(".app") ? appName : "\(appName).app"
         
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -290,7 +295,9 @@ struct ContentView: View {
             }
             searchAppName = ""
         } else {
-            print("Could not finde app: \(appFilename)")
+            alertMessage = "Could not find application: \"\(trimmed)\""
+            isShowingAlert = true
+            alertTitle = "Application not Found"
         }
     }
     
@@ -319,5 +326,12 @@ struct ContentView: View {
     
     private func startSession() {
         manager.startSession(hoursStr: hours, minutesStr: minutes, secondsStr: seconds, allowedApps: allowedApps)
+        {
+            title, message in
+            print("test")
+            self.alertTitle = title
+            self.alertMessage = message
+            self.isShowingAlert = true
+        }
     }
 }
