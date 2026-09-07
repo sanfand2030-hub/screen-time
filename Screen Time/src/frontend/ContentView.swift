@@ -187,7 +187,6 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // TODO: this is debug code. in release, remove ability to stop focus session until timer runs out
                 Button(action: {
                     if manager.isSessionActive {
                         #if DEBUG

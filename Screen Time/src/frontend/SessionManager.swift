@@ -40,18 +40,18 @@ class SessionManager: ObservableObject {
                 return
             }
             
-            
-            self.timeRemaining = totalSeconds
-            self.isSessionActive = true
-            
-            startBackgroundMonitoring(paths: pathStrings)
-            
-            uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                guard let self = self else { return }
-                if self.timeRemaining > 0 {
-                    self.timeRemaining -= 1
-                } else {
-                    self.stopSession()
+            DispatchQueue.main.async {
+                self.timeRemaining = totalSeconds
+                self.isSessionActive = true
+                self.startBackgroundMonitoring(paths: pathStrings)
+                
+                self.uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                    guard let self = self else { return }
+                    if self.timeRemaining > 0 {
+                        self.timeRemaining -= 1
+                    } else {
+                        self.stopSession()
+                    }
                 }
             }
         }
