@@ -34,7 +34,6 @@ class SessionManager: ObservableObject {
             }
             
             if ret != 0 {
-                print("test2")
                 DispatchQueue.main.async {
                     onError("Session Error", "List of allowed apps is empty")
                 }

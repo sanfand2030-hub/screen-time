@@ -328,7 +328,6 @@ struct ContentView: View {
         manager.startSession(hoursStr: hours, minutesStr: minutes, secondsStr: seconds, allowedApps: allowedApps)
         {
             title, message in
-            print("test")
             self.alertTitle = title
             self.alertMessage = message
             self.isShowingAlert = true
