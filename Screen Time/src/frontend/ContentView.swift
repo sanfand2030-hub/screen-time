@@ -188,15 +188,14 @@ struct ContentView: View {
                 Spacer()
                 
                 Button(action: {
-                    if manager.isSessionActive {
-                        #if DEBUG
-                        manager.stopSession()
-                        #endif
-                    } else {
+                    if !manager.isSessionActive {
                         startSession()
                     }
                 }) {
-                    Text(manager.isSessionActive ? "Stop Focus Session (\(manager.timeRemaining)s)" :
+                    let hh = manager.timeRemaining / 3600
+                    let mm = manager.timeRemaining % 3600 / 60
+                    let ss = manager.timeRemaining % 60
+                    Text(manager.isSessionActive ? "Time remaining: \(hh)h \(mm)m \(ss)s" :
                             "Start Focus Session")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -291,6 +290,11 @@ struct ContentView: View {
             
             if !allowedApps.contains(where: { $0.bundlePath == appURL.path }) {
                 allowedApps.append(newApp)
+            } else {
+                alertTitle = "Duplicate Application"
+                alertMessage = "Application \"\(trimmed)\" is already in list"
+                isShowingAlert = true
+                return
             }
             searchAppName = ""
         } else {
